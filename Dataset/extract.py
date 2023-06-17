@@ -2,8 +2,13 @@ import sys
 import os
 import glob
 import hdf5_getters
+import requests
 import re
+from DataPreprocessing.preprocess import DataPreprocessor
+import musicbrainzngs
 
+# Set up keys and things
+LAST_API_KEY = '9c868079108796de13e41324211cfa0a'
 
 class Song:
     songCount = 0
@@ -34,6 +39,7 @@ class Song:
         self.timeSignatureConfidence = None
         self.title = None
         self.year = None
+        self.genre = None
 
     def displaySongCount(self):
         print("Total Song Count %i" % Song.songCount)
@@ -41,6 +47,19 @@ class Song:
     def displaySong(self):
         print("ID: %s" % self.id)
 
+
+def get_lastfm_tags(artist, track):
+    url = f'http://ws.audioscrobbler.com/2.0/?method=track.gettoptags&artist={artist}&track={track}&api_key={LAST_API_KEY}&format=json'
+    response = requests.get(url)
+    if response.status_code == 200:
+        tags = response.json().get('toptags', {}).get('tag', [])
+        tag_names = [tag['name'] for tag in tags]
+        return tag_names
+        #for tag in tag_names:
+        #    if tag.lower() in ['rock', 'pop', 'metal', 'jazz', 'classical', 'hip-hop', '']
+    else:
+        print(f"Failed to retrieve tags for {artist} - {track}")
+        return []
 
 def main():
     outputFile1 = open('SongCSV.csv', 'w')
@@ -106,6 +125,8 @@ def main():
             song.timeSignatureConfidence = str(hdf5_getters.get_time_signature_confidence(songH5File))
             song.title = str(hdf5_getters.get_title(songH5File))[2:-1]
             song.year = str(hdf5_getters.get_year(songH5File))
+            song.genre = get_lastfm_tags(song.artistName, song.title)
+
 
             # print song count
             csvRowString += str(song.songCount) + ","

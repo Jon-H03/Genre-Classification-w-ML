@@ -1,6 +1,9 @@
 import sys
 import os
 import glob
+
+import pandas as pd
+
 import hdf5_getters
 import requests
 import re
@@ -9,6 +12,7 @@ import musicbrainzngs
 
 # Set up keys and things
 LAST_API_KEY = '9c868079108796de13e41324211cfa0a'
+
 
 class Song:
     songCount = 0
@@ -48,30 +52,32 @@ class Song:
         print("ID: %s" % self.id)
 
 
-def get_lastfm_tags(artist, track):
+def get_lastfm_genres(artist, track):
     url = f'http://ws.audioscrobbler.com/2.0/?method=track.gettoptags&artist={artist}&track={track}&api_key={LAST_API_KEY}&format=json'
     response = requests.get(url)
     if response.status_code == 200:
         tags = response.json().get('toptags', {}).get('tag', [])
         tag_names = [tag['name'] for tag in tags]
-        return tag_names
-        #for tag in tag_names:
-        #    if tag.lower() in ['rock', 'pop', 'metal', 'jazz', 'classical', 'hip-hop', '']
+        print(tag_names)
+        if not tag_names:
+            return None
+        main_genre = None
+
+        for tag in tag_names:
+            if tag.lower() in ['rock', 'pop', 'metal', 'jazz',
+                               'classical', 'hip-hop', 'edm', 'dance',
+                               'rap', 'r&b', 'reggae', 'alternative', 'indie',
+                               'punk', 'folk', 'country', 'electronic']:
+                main_genre = tag
+        return main_genre
     else:
         print(f"Failed to retrieve tags for {artist} - {track}")
-        return []
+        return None
+
 
 def main():
     outputFile1 = open('SongCSV.csv', 'w')
     csvRowString = ""
-
-    #################################################
-    # if you want to prompt the user for the order of attributes in the csv,
-    # leave the prompt boolean set to True
-    # else, set 'prompt' to False and set the order of attributes in the 'else'
-    # clause
-
-    #################################################
 
     #################################################
     # change the order of the csv file here
@@ -79,7 +85,7 @@ def main():
     csvRowString = ("SongID,AlbumID,AlbumName,ArtistID,ArtistLatitude,ArtistLocation," +
                     "ArtistLongitude,ArtistName,Danceability,Duration,KeySignature," +
                     "KeySignatureConfidence,Tempo,TimeSignature,TimeSignatureConfidence," +
-                    "Title,Year")
+                    "Title,Year,Genre,")
     #################################################
     csvAttributeList = re.split(',', csvRowString)
     for i, v in enumerate(csvAttributeList):
@@ -125,15 +131,13 @@ def main():
             song.timeSignatureConfidence = str(hdf5_getters.get_time_signature_confidence(songH5File))
             song.title = str(hdf5_getters.get_title(songH5File))[2:-1]
             song.year = str(hdf5_getters.get_year(songH5File))
-            song.genre = get_lastfm_tags(song.artistName, song.title)
-
+            song.genre = get_lastfm_genres(song.artistName, song.title)
 
             # print song count
             csvRowString += str(song.songCount) + ","
 
             for attribute in csvAttributeList:
                 # print "Here is the attribute: " + attribute + " \n"
-
                 if attribute == 'AlbumID'.lower():
                     csvRowString += song.albumID
                 elif attribute == 'AlbumName'.lower():
@@ -181,8 +185,12 @@ def main():
                     csvRowString += "\"" + song.title + "\""
                 elif attribute == 'Year'.lower():
                     csvRowString += song.year
-                else:
-                    csvRowString += "Erm. This didn't work. Error. :( :(\n"
+                elif attribute == 'Genre'.lower() and song.genre:
+                    csvRowString += song.genre
+                # elif attribute == 'Subgenres'.lower():
+                #    csvRowString += ", ".join(song.subgenres)
+                #else:
+                #    csvRowString += "Erm. This didn't work. Error. :( :(\n"
 
                 csvRowString += ","
 
@@ -196,6 +204,5 @@ def main():
             songH5File.close()
 
     outputFile1.close()
-
 
 main()

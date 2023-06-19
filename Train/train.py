@@ -57,9 +57,9 @@ torch.manual_seed(42)
 torch.cuda.manual_seed(42)
 
 # Define Hyperparameters
-learning_rate = 0.001
+learning_rate = 0.01
 batch_size = 32
-num_epochs = 100
+num_epochs = 1000
 
 # Define the loss function & optimizer
 loss_fn = nn.CrossEntropyLoss()
@@ -83,8 +83,6 @@ for epoch in range(num_epochs):
 
         # Forward pass
         outputs = model(inputs)
-        print("Outputs shape:", outputs.shape)
-        print("Labels shape:", labels.shape)
 
         # Calculate loss
         loss = loss_fn(outputs, labels)

@@ -17,39 +17,52 @@ preprocessor = DataPreprocessor()
 # Preprocess the data
 preprocessed_data = preprocessor.preprocess(data)
 
+# Drop rows with missing values
+preprocessed_data = preprocessed_data.dropna(subset=['Genre'])
+
 # Split the dataset into training and testing sets
-train_data, test_data = train_test_split(data, test_size=0.2, random_state=42)
+train_data, test_data = train_test_split(preprocessed_data, test_size=0.2, random_state=42)
 
-
+# Initialize label encoder
 label_encoder = LabelEncoder()
 label_encoder.fit(train_data['Genre'])
+
 # Convert the data into tensors
-train_inputs = torch.tensor(train_data.drop(['Genre', 'Title', 'SongID', 'AlbumName', 'ArtistID', 'ArtistLocation', 'ArtistName'], axis=1).values, dtype=torch.float32)
-train_targets = torch.tensor(label_encoder.transform(train_data['Genre']), dtype=torch.long)
-test_inputs = torch.tensor(test_data.drop(['Genre', 'Title', 'SongID', 'AlbumName', 'ArtistID', 'ArtistLocation', 'ArtistName'], axis=1).values, dtype=torch.float32)
-test_targets = torch.tensor(label_encoder.transform(test_data['Genre']), dtype=torch.long)
-print(len(test_inputs))
-print(test_targets.size(0))
+train_inputs = torch.tensor(train_data.drop(['Genre', 'Title'], axis=1).values, dtype=torch.float32)
+train_targets = torch.tensor(label_encoder.fit_transform(train_data['Genre']), dtype=torch.long)
+test_inputs = torch.tensor(test_data.drop(['Genre', 'Title'], axis=1).values, dtype=torch.float32)
+test_targets = torch.tensor(label_encoder.fit_transform(test_data['Genre']), dtype=torch.long)
+
+# Decode the encoded target values
+train_genre_labels = label_encoder.inverse_transform(train_targets)
+
+# Print the unique target values
+unique_genres = set(train_genre_labels)
+print("Unique genres:", len(unique_genres))
+print("Encoded target values:", train_targets)
 
 # Create our model with respective genres in list.
 genres = ['rock', 'pop', 'metal', 'jazz', 'classical', 'hip-hop', 'edm', 'dance', 'rap',
           'r&b', 'reggae', 'alternative', 'indie', 'punk', 'folk', 'country', 'electronic']
 
+# Get our # of features for our model
+initial_features = train_inputs.shape[1]
+print(initial_features)
 # Set up our model and device-agnostic code
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = RecommendationModel().to(device)
+model = RecommendationModel(initial_features).to(device)
 
 # Set random seed (for now)
 torch.manual_seed(42)
 torch.cuda.manual_seed(42)
 
 # Define Hyperparameters
-learning_rate = .001
+learning_rate = 0.001
 batch_size = 32
 num_epochs = 100
 
 # Define the loss function & optimizer
-criterion = nn.CrossEntropyLoss()
+loss_fn = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Create the train_dataset and test_dataset
@@ -70,9 +83,11 @@ for epoch in range(num_epochs):
 
         # Forward pass
         outputs = model(inputs)
+        print("Outputs shape:", outputs.shape)
+        print("Labels shape:", labels.shape)
 
         # Calculate loss
-        loss = criterion(outputs, labels)
+        loss = loss_fn(outputs, labels)
 
         # Optimizer zero grad
         optimizer.zero_grad()
@@ -96,7 +111,7 @@ for epoch in range(num_epochs):
             outputs = model(inputs)
 
             # Calculate test loss
-            test_loss = criterion(outputs, labels)
+            test_loss = loss_fn(outputs, labels)
             total_test_loss += test_loss.item()
 
             # Count correct predictions

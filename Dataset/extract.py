@@ -1,17 +1,13 @@
 import sys
 import os
 import glob
-
 import pandas as pd
-
 import hdf5_getters
 import requests
 import re
 from DataPreprocessing.preprocess import DataPreprocessor
 import musicbrainzngs
-
-# Set up keys and things
-LAST_API_KEY = '9c868079108796de13e41324211cfa0a'
+from api import LAST_API_KEY
 
 
 class Song:
